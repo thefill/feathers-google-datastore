@@ -6,7 +6,7 @@
 [![Dependency Status](https://img.shields.io/david/thefill/feathers-google-datastore.svg?style=flat-square)](https://david-dm.org/thefill/feathers-google-datastore)
 [![Download Status](https://img.shields.io/npm/dm/feathers-google-datastore.svg?style=flat-square)](https://www.npmjs.com/package/feathers-google-datastore)
 
-> Google Datastore adapter for Feathers JavaScript framework. Edit
+> Google Datastore adapter for Feathers JavaScript framework. Work in progress.
 
 ## Installation
 
