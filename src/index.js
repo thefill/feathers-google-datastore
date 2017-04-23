@@ -2,6 +2,10 @@
  * Google Datastore adapter for Feathers JavaScript framework.
  */
 
+// TODO:
+// - create examples
+// - implement unit tests (is that possible without datastore emulation? Datastore in travis ci?)
+
 // import errors from 'feathers-errors';
 import makeDebug from 'debug';
 // get datastore model
@@ -10,13 +14,6 @@ const Datastore = require('@google-cloud/datastore');
 const debug = makeDebug('feathers-google-datastore');
 // get error
 const errors = require('feathers-errors');
-
-
-// // You can wrap existing errors
-// const existing = new errors.GeneralError(new Error('I exist'));
-
-// // You can also pass additional data
-// const data = new errors.BadRequest('Invalid email', {email: 'sergey@google.com'});
 
 /**
  * Adapter factory generator
@@ -35,17 +32,20 @@ const datastoreAdapter = function (options) {
     // adapter factory
     let adapter = {
         // config represents the data required for connection to the datasource.
-        config: null,
+        datastoreConfig: null,
         // datastore contains refference to Google Datastore object initialised with provided credentials
         datastore: null,
-        // default Kind for calls - used if none provided in params
-        defaultKind: false,
-        // do we allow custom kind passed in params? For the security reasons: no!
-        allowKindOverwrite: false,
-        // default namespace for calls - used if none provided in params
-        defaultNamespace: false,
-        // do we allow custom namespace passed in params? For the security reasons: no!
-        allowNamespaceOverwrite: false,
+        // adapter config
+        config: {
+            // default Kind for calls - used if none provided in params
+            defaultKind: false,
+            // do we allow custom kind passed in params? For the security reasons: no!
+            allowKindOverwrite: false,
+            // default namespace for calls - used if none provided in params
+            defaultNamespace: false,
+            // do we allow custom namespace passed in params? For the security reasons: no!
+            allowNamespaceOverwrite: false,
+        },
         // definition of required adapter interface methods
         find: find,
         get: get,
@@ -55,13 +55,15 @@ const datastoreAdapter = function (options) {
         remove: remove,
         setup: setup,
         // utils
-        resolveConfig: resolveConfig,
+        resolveDatastoreConfig: resolveDatastoreConfig,
         resolveId: resolveId,
         resolveKind: resolveKind,
         resolveErrorData: resolveErrorData,
         isValidKind: isValidKind,
         resolvePreKey: resolvePreKey,
         resolveNamespace: resolveNamespace,
+        resolveConfig: resolveConfig,
+        setupDatastore: setupDatastore,
         // misc properities
         // refference to feathers app
         app: null,
@@ -69,56 +71,11 @@ const datastoreAdapter = function (options) {
         path: ''
     };
 
-    // set config using provided options or env variables if provided
-    if (typeof options != "undefined" && typeof options.model != "undefined") {
-        // find out which options & env variables to use in config
-        adapter.config = adapter.resolveConfig(options.model);
-    } else {
-        // if config or model not provided
-        adapter.config = false;
-    }
+    // setup connection to datastore
+    adapter.setupDatastore(options);
 
-    // if config provided
-    if (adapter.config) {
-        // pass config
-        adapter.datastore = Datastore(adapter.config);
-    } else {
-        // don't pass config
-        debug('Config for datastore not provided or invalid - initialising without config.');
-        adapter.datastore = Datastore();
-    }
-
-    // set default kind if provided (string or array of strings)
-    if (typeof options != "undefined" && adapter.isValidKind(options.defaultKind)) {
-        debug('Default Kind provided - each call will fallback to it.');
-        adapter.defaultKind = options.defaultKind;
-    } else {
-        debug('Default Kind not provided - each call to adapter will require Kind (if allowKindOverwrite true).');
-    }
-
-    // set permission to swap kind if permission provided
-    if (typeof options != "undefined" && typeof options.allowKindOverwrite != "undefined" && options.allowKindOverwrite) {
-        debug('Service allows to use kind from params.');
-        adapter.allowKindOverwrite = true;
-    } else {
-        debug('Service will use only defined kind.');
-    }
-
-    // set default namespace if provided (string)
-    if (typeof options != "undefined" && typeof options.defaultNamespace == "string") {
-        debug('Default Namespace provided - each call will fallback to it.');
-        adapter.defaultNamespace = options.defaultNamespace;
-    } else {
-        debug('Default Namespace not provided - each call to adapter can optionally provide it (if allowNamespaceOverwrite true).');
-    }
-
-    // set permission to swap namespace if permission provided
-    if (typeof options != "undefined" && typeof options.allowNamespaceOverwrite != "undefined" && options.allowNamespaceOverwrite) {
-        debug('Service allows to use namespace from params.');
-        adapter.allowNamespaceOverwrite = true;
-    } else {
-        debug('Service will use only defined namespace.');
-    }
+    // set main config
+    adapter.resolveConfig(options);
 
     // Return an object that implements the service interface.
     return {
@@ -138,7 +95,6 @@ const datastoreAdapter = function (options) {
      * @returns {promise} Promise resolved to returned data.
      */
     function get(id, params) {
-        // TODO:
         debug('Method "Get" called.');
 
         // set new promise
@@ -192,28 +148,152 @@ const datastoreAdapter = function (options) {
     }
 
     // implementation of adapters methods
+    /**
+     * Returns a list of all records matching the query in params.query
+     * using the common querying mechanism. Will either return an array
+     * with the results or a page object if pagination is enabled.
+     * @param {object} params Object of passed params
+     */
     function find(params) {
         // TODO:
+        // implement https://docs.feathersjs.com/api/databases/querying.html
+        // examples:
+        // Find all messages for user with id 1
+        // app.service('messages').find({
+        //     query: {
+        //         userId: 1
+        //     }
+        // }).then(messages => console.log(messages));
+
+        // // Find all messages belonging to room 1 or 3
+        // app.service('messages').find({
+        //     query: {
+        //         roomId: {
+        //             $in: [1, 3]
+        //         }
+        //     }
+        // }).then(messages => console.log(messages));
+
+        // REST test:
+        // Find all messages for user with id 1
+        // GET /messages?userId=1
+        // Find all messages belonging to room 1 or 3
+        // GET /messages?roomId[$in]=1&roomId[$in]=3
     }
 
+    /**
+     * Create a new record with data. data can also be an array to create multiple records.
+     * @param {object} data any data or array (create multiple records)
+     * @param {object} params Object of passed params
+     */
     function create(data, params) {
         // this.emit('status', { status: 'created' });
         // TODO:
+        // Example:
+        // app.service('messages').create({
+        //         text: 'A test message'
+        //     })
+        //     .then(message => console.log(message));
+
+        // app.service('messages').create([{
+        //         text: 'Hi'
+        //     }, {
+        //         text: 'How are you'
+        //     }])
+        //     .then(messages => console.log(messages));
+
+        // REST test:
+        // POST /messages
+        // {
+        // "text": "A test message"
+        // }
     }
 
+    /**
+     * Completely replaces a single record identified by id with data.
+     * Does not allow replacing multiple records (id can't be null). id can not be changed.
+     * @param {number} id Valid id in form of a number
+     * @param {object} data any data
+     * @param {object} params Object of passed params
+     */
     function update(id, data, params) {
         // this.emit('status', { status: 'updated' });
         // TODO:
+        // Example:
+        // app.service('messages').update(1, {
+        //         text: 'Updates message'
+        //     })
+        //     .then(message => console.log(message));
+
+        // REST example:
+        // PUT /messages/1
+        // { "text": "Updated message" }
     }
 
+    /**
+     * Merges a record identified by id with data. id can be null to allow
+     * replacing multiple records (all records that match params.query the
+     * same as in .find). id can not be changed.
+     * @param {number | null} id Valid id in form of a number
+     * @param {object} data any data
+     * @param {object} params Object of passed params
+     */
     function patch(id, data, params) {
         // this.emit('status', { status: 'patched' });
         // TODO:
+        // params may be { query: { ... }, ... } for find; also for patch and remove if id is null.
+
+        // Examples:
+        // app.service('messages').update(1, {
+        //         text: 'A patched message'
+        //     })
+        //     .then(message => console.log(message));
+
+        // const params = {
+        //     query: {
+        //         read: false
+        //     }
+        // };
+        // Mark all unread messages as read
+        // app.service('messages').patch(null, {
+        //     read: true
+        // }, params);
+
+        // REST examples:
+        // PATCH /messages/1
+        // { "text": "A patched message" }
+        // Mark all unread messages as read
+        // PATCH /messages?read=false
+        // { "read": true }
     }
 
+    /**
+     * Removes a record identified by id. id can be null to allow removing
+     * multiple records (all records that match params.query the same as in .find).
+     * @param {number | null} id Valid id in form of a number
+     * @param {object} params Object of passed params
+     */
     function remove(id, params) {
         // this.emit('status', { status: 'removed' });
         // TODO:
+        // params may be { query: { ... }, ... } for find; also for patch and remove if id is null.
+
+        // Example:
+        // app.service('messages').remove(1)
+        //     .then(message => console.log(message));
+
+        // const params = {
+        //     query: {
+        //         read: true
+        //     }
+        // };
+        // // Remove all read messages
+        // app.service('messages').remove(null, params);
+
+        // REST example:
+        // DELETE /messages/1
+        // Remove all read messages
+        // DELETE /messages?read=true
     }
 
     /**
@@ -224,6 +304,73 @@ const datastoreAdapter = function (options) {
     function setup(app, path) {
         adapter.app = app;
         adapter.path = path;
+    }
+
+    /**
+     * Setup connection to datastore
+     * @param {object} options params passed when initialised
+     */
+    function setupDatastore(options) {
+        // set config using provided options or env variables if provided
+        if (typeof options != "undefined" && typeof options.model != "undefined") {
+            // find out which options & env variables to use in config
+            adapter.datastoreConfig = adapter.resolveDatastoreConfig(options.model);
+        } else {
+            // if config or model not provided
+            adapter.datastoreConfig = false;
+        }
+
+        // if config provided
+        if (adapter.datastoreConfig) {
+            // pass config
+            adapter.datastore = Datastore(adapter.datastoreConfig);
+        } else {
+            // don't pass config
+            debug('Config for datastore not provided or invalid - initialising without config.');
+            adapter.datastore = Datastore();
+        }
+    }
+
+    /**
+     * Set manin config from provided options
+     * @param {object} options params passed when initialised
+     */
+    function resolveConfig(options) {
+        // TODO:
+        //   - add custom events as per https://docs.feathersjs.com/api/databases/common.html#initialization
+        //   - add pagination as per https://docs.feathersjs.com/api/databases/common.html#initialization
+
+        // set default kind if provided (string or array of strings)
+        if (typeof options != "undefined" && adapter.isValidKind(options.defaultKind)) {
+            debug('Default Kind provided - each call will fallback to it.');
+            adapter.config.defaultKind = options.defaultKind;
+        } else {
+            debug('Default Kind not provided - each call to adapter will require Kind (if allowKindOverwrite true).');
+        }
+
+        // set permission to swap kind if permission provided
+        if (typeof options != "undefined" && typeof options.allowKindOverwrite != "undefined" && options.allowKindOverwrite) {
+            debug('Service allows to use kind from params.');
+            adapter.config.allowKindOverwrite = true;
+        } else {
+            debug('Service will use only defined kind.');
+        }
+
+        // set default namespace if provided (string)
+        if (typeof options != "undefined" && typeof options.defaultNamespace == "string") {
+            debug('Default Namespace provided - each call will fallback to it.');
+            adapter.config.defaultNamespace = options.defaultNamespace;
+        } else {
+            debug('Default Namespace not provided - each call to adapter can optionally provide it (if allowNamespaceOverwrite true).');
+        }
+
+        // set permission to swap namespace if permission provided
+        if (typeof options != "undefined" && typeof options.allowNamespaceOverwrite != "undefined" && options.allowNamespaceOverwrite) {
+            debug('Service allows to use namespace from params.');
+            adapter.config.allowNamespaceOverwrite = true;
+        } else {
+            debug('Service will use only defined namespace.');
+        }
     }
 
     /**
@@ -268,14 +415,14 @@ const datastoreAdapter = function (options) {
      */
     function resolveKind(params) {
         // if model allows for kind provided via params
-        if (adapter.allowKindOverwrite) {
+        if (adapter.config.allowKindOverwrite) {
             // if kind provided in params
             if (typeof params.kind != undefined && adapter.isValidKind(params.kind)) {
                 return params.kind;
             }
         }
         // fallback to default
-        return adapter.defaultKind;
+        return adapter.config.defaultKind;
     }
 
     /**
@@ -286,14 +433,14 @@ const datastoreAdapter = function (options) {
      */
     function resolveNamespace(params) {
         // if model allows for namespace provided via params
-        if (adapter.allowNamespaceOverwrite) {
+        if (adapter.config.allowNamespaceOverwrite) {
             // if namespace provided in params
             if (typeof params.namespace != undefined && typeof params.namespace == "string") {
                 return params.namespace;
             }
         }
         // fallback to default
-        return adapter.defaultNamespace;
+        return adapter.config.defaultNamespace;
     }
 
     /**
@@ -320,7 +467,7 @@ const datastoreAdapter = function (options) {
 
         // if kind different than default then we can return it in error data
         // because it was provided by the user
-        if (kind !== adapter.defaultKind) {
+        if (kind !== adapter.config.defaultKind) {
             errorData.kind = kind;
         }
 
@@ -373,10 +520,10 @@ const datastoreAdapter = function (options) {
      *
      * Note: When using a .pem or .p12 key file, config.email is also required.
      *
-     * @param {object} config object
+     * @param {object} options params for model passed when initialised
      * @returns {object} parsed config object
      */
-    function resolveConfig(options) {
+    function resolveDatastoreConfig(options) {
         let config = {};
 
         // get project id (config object takes priority)
