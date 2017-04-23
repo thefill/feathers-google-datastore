@@ -38,7 +38,7 @@
     "mocha": "mocha --opts mocha.opts",
     "coverage": "istanbul cover node_modules/mocha/bin/_mocha -- --opts mocha.opts",
     "test": "npm run compile && npm run lint && npm run coverage",
-    "start": "npm run compile && node example/app"
+    "start": "npm run compile && node lib/index.js"
   },
   "semistandard": {
     "sourceType": "module",
@@ -50,6 +50,7 @@
     "lib": "lib"
   },
   "dependencies": {
+    "@google-cloud/datastore": "^1.0.0",
     "debug": "^2.6.4",
     "feathers-errors": "^2.6.3"
   },
